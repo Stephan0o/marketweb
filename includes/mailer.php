@@ -1,50 +1,38 @@
 <?php
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
-
 // Cargar init.php
 require_once __DIR__ . '/../init.php';
 
-//codigo aleatorio
+/**
+ * Genera un código aleatorio de verificación
+ */
 function generarCodigo($longitud = 6) {
     return substr(str_shuffle("0123456789"), 0, $longitud);
 }
 
-//enviar correo
+/**
+ * Envía correo usando SendGrid API
+ */
 function enviarCorreo($destinatario, $codigo) {
-    $mail = new PHPMailer(true);
-    
     try {
-        $mail_host = $_ENV['MAIL_HOST'] ?? getenv('MAIL_HOST') ?? 'smtp.gmail.com';
-        $mail_port = $_ENV['MAIL_PORT'] ?? getenv('MAIL_PORT') ?? 587;
-        $mail_username = $_ENV['MAIL_USERNAME'] ?? getenv('MAIL_USERNAME');
-        $mail_password = $_ENV['MAIL_PASSWORD'] ?? getenv('MAIL_PASSWORD');
-        $mail_from_name = $_ENV['MAIL_FROM_NAME'] ?? getenv('MAIL_FROM_NAME') ?? 'MarketWeb';
+        // ============================================
+        // OBTENER VARIABLES DE ENTORNO
+        // ============================================
         
-        if (!$mail_username || !$mail_password) {
-            throw new Exception('Credenciales de email no configuradas');
+        $sendgrid_api_key = $_ENV['SENDGRID_API_KEY'] ?? getenv('SENDGRID_API_KEY');
+        $mail_from_name = $_ENV['MAIL_FROM_NAME'] ?? getenv('MAIL_FROM_NAME') ?? 'MarketWeb';
+        $mail_username = $_ENV['MAIL_USERNAME'] ?? getenv('MAIL_USERNAME') ?? 'noreply@marketweb.com';
+        
+        // Validar que exista API Key
+        if (!$sendgrid_api_key) {
+            throw new Exception('SENDGRID_API_KEY no configurada');
         }
         
-        // config SMTP
-        $mail->SMTPDebug = 0;
-        $mail->isSMTP();
-        $mail->Host = $mail_host;
-        $mail->SMTPAuth = true;
-        $mail->Username = $mail_username;
-        $mail->Password = $mail_password;
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port = $mail_port;
-        $mail->CharSet = 'UTF-8';
-        $mail->Timeout = 30;
-        $mail->SMTPKeepAlive = true;
-
-        // config correo
-        $mail->setFrom($mail_username, $mail_from_name);
-        $mail->addAddress($destinatario);
-        $mail->isHTML(true);
-        $mail->Subject = "Confirma tu Registro - MarketWeb";
+        // ============================================
+        // PREPARAR CONTENIDO DEL EMAIL
+        // ============================================
         
-        $mail->Body = "
+        $subject = "Confirma tu Registro - MarketWeb";
+        $html_body = "
         <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fc; border-radius: 10px;'>
             <div style='background: linear-gradient(135deg, #4e73df, #1cc88a); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;'>
                 <h2 style='color: white; margin: 0;'>¡Bienvenido a MarketWeb! 👋</h2>
@@ -64,17 +52,82 @@ function enviarCorreo($destinatario, $codigo) {
         </div>
         ";
         
-        $mail->AltBody = "Tu código de verificación es: $codigo";
-
-        $mail->send();
+        $text_body = "Tu código de verificación es: $codigo";
+        
+        // ============================================
+        // PREPARAR PAYLOAD PARA SENDGRID
+        // ============================================
+        
+        $email_data = [
+            'personalizations' => [
+                [
+                    'to' => [
+                        [
+                            'email' => $destinatario,
+                            'name' => 'Usuario MarketWeb'
+                        ]
+                    ],
+                    'subject' => $subject
+                ]
+            ],
+            'from' => [
+                'email' => $mail_username,
+                'name' => $mail_from_name
+            ],
+            'reply_to' => [
+                'email' => $mail_username,
+                'name' => $mail_from_name
+            ],
+            'content' => [
+                [
+                    'type' => 'text/plain',
+                    'value' => $text_body
+                ],
+                [
+                    'type' => 'text/html',
+                    'value' => $html_body
+                ]
+            ]
+        ];
+        
+        // ============================================
+        // ENVIAR VÍA SENDGRID API
+        // ============================================
+        
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, 'https://api.sendgrid.com/v3/mail/send');
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($email_data));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Authorization: Bearer ' . $sendgrid_api_key,
+            'Content-Type: application/json'
+        ]);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        
+        $response = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curl_error = curl_error($ch);
+        curl_close($ch);
+        
+        // Validar respuesta
+        if ($curl_error) {
+            throw new Exception('Error cURL: ' . $curl_error);
+        }
+        
+        if ($http_code !== 202) {
+            error_log("SendGrid Error ($http_code): " . $response);
+            throw new Exception('SendGrid retornó código: ' . $http_code);
+        }
+        
         return ['success' => true];
         
     } catch (Exception $e) {
-        error_log("Error en PHPMailer: " . $mail->ErrorInfo);
+        error_log("Error en envío de email: " . $e->getMessage());
         return [
             'success' => false, 
-            'error' => $mail->ErrorInfo,
-            'message' => 'Error al enviar correo: ' . $e->getMessage()
+            'error' => $e->getMessage(),
+            'message' => 'Error al enviar correo'
         ];
     }
 }
