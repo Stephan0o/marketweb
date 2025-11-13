@@ -1,6 +1,10 @@
+# ============================================
+# REESCRITURA DE URLS
+# ============================================
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteBase /
+    RewriteBase /marketWebAzure/
     
     # No reescribir archivos o directorios reales
     RewriteCond %{REQUEST_FILENAME} !-f
@@ -41,22 +45,16 @@
 </IfModule>
 
 # ============================================
-# SEGURIDAD
+# SEGURIDAD - PROTEGER ARCHIVOS SENSIBLES
 # ============================================
 
-# Evitar acceso directo a archivos sensibles
-<FilesMatch "^(\.env|\.htaccess|composer\.json|composer\.lock)$">
+<FilesMatch "^(\.env|\.htaccess|composer\.json|composer\.lock|\.git)$">
     Order allow,deny
     Deny from all
 </FilesMatch>
 
-# Permitir acceso a assets
-<Directory "*/assets">
-    Allow from all
-</Directory>
-
 # ============================================
-# COMPRESIÓN ADICIONAL
+# HEADERS DE SEGURIDAD
 # ============================================
 
 <IfModule mod_headers.c>
