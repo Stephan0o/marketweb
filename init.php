@@ -1,16 +1,15 @@
 <?php
 // ============================================
-// INICIALIZACIÓN ULTRA-OPTIMIZADA
+// INICIALIZACIÓN - COMPATIBLE CON LOCALHOST Y RENDER
 // ============================================
 
-// Verificar si ya está cargado TODO
 if (defined('APP_INITIALIZED')) {
     $conn = $GLOBALS['conn'];
     return;
 }
 
 // ============================================
-// CARGAR AUTOLOADER SOLO UNA VEZ
+// CARGAR AUTOLOADER
 // ============================================
 
 if (!function_exists('spl_autoload_functions') || !in_array('Composer\Autoload\ClassLoader', array_map('get_class', spl_autoload_functions()))) {
@@ -18,15 +17,23 @@ if (!function_exists('spl_autoload_functions') || !in_array('Composer\Autoload\C
 }
 
 // ============================================
-// CARGAR .env SOLO UNA VEZ (CACHEAR EN VARIABLES GLOBALES)
+// CARGAR VARIABLES DE ENTORNO
 // ============================================
 
-if (!isset($GLOBALS['ENV_LOADED'])) {
+// Solo carga .env si existe (localhost)
+$env_file = __DIR__ . '/.env';
+if (file_exists($env_file)) {
     $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
     $dotenv->load();
-    
-    // Cachear en variables globales
-    $GLOBALS['ENV_LOADED'] = true;
+}
+
+// En Render, las variables vienen del dashboard (ya en $_ENV)
+
+// ============================================
+// CACHEAR EN GLOBALES
+// ============================================
+
+if (!isset($GLOBALS['DB_HOST'])) {
     $GLOBALS['DB_HOST'] = $_ENV['DB_HOST'] ?? getenv('DB_HOST');
     $GLOBALS['DB_USER'] = $_ENV['DB_USER'] ?? getenv('DB_USER');
     $GLOBALS['DB_PASSWORD'] = $_ENV['DB_PASSWORD'] ?? getenv('DB_PASSWORD');
@@ -36,7 +43,7 @@ if (!isset($GLOBALS['ENV_LOADED'])) {
 }
 
 // ============================================
-// CREAR CONEXIÓN A BD (SINGLETON)
+// CONECTAR A BASE DE DATOS
 // ============================================
 
 if (!isset($GLOBALS['conn']) || $GLOBALS['conn'] === null) {
@@ -54,39 +61,32 @@ if (!isset($GLOBALS['conn']) || $GLOBALS['conn'] === null) {
     $GLOBALS['conn']->set_charset("utf8mb4");
 }
 
-// ============================================
-// VARIABLES LOCALES PARA ACCESO FÁCIL
-// ============================================
-
 $conn = $GLOBALS['conn'];
-$app_env = $GLOBALS['APP_ENV'];
 
 // ============================================
-// DEFINIR CONSTANTES (PARA COMPATIBILIDAD)
+// DEFINIR CONSTANTES
 // ============================================
 
 if (!defined('DB_HOST')) {
-    define('DB_HOST', $GLOBALS['DB_HOST']);
-    define('DB_USER', $GLOBALS['DB_USER']);
-    define('DB_PASSWORD', $GLOBALS['DB_PASSWORD']);
-    define('DB_NAME', $GLOBALS['DB_NAME']);
-    define('GEMINI_API_KEY', $GLOBALS['GEMINI_KEY']);
-    define('APP_ENV', $GLOBALS['APP_ENV']);
-    
-    // Constantes para Email (PHPMailer)
+    define('DB_HOST', $_ENV['DB_HOST'] ?? '');
+    define('DB_USER', $_ENV['DB_USER'] ?? '');
+    define('DB_PASSWORD', $_ENV['DB_PASSWORD'] ?? '');
+    define('DB_NAME', $_ENV['DB_NAME'] ?? '');
+    define('GEMINI_API_KEY', $_ENV['GEMINI_API_KEY'] ?? '');
     define('MAIL_HOST', $_ENV['MAIL_HOST'] ?? 'smtp.gmail.com');
     define('MAIL_PORT', $_ENV['MAIL_PORT'] ?? 587);
     define('MAIL_USERNAME', $_ENV['MAIL_USERNAME'] ?? '');
     define('MAIL_PASSWORD', $_ENV['MAIL_PASSWORD'] ?? '');
     define('MAIL_FROM_NAME', $_ENV['MAIL_FROM_NAME'] ?? 'MarketWeb');
     define('MAIL_ENCRYPTION', $_ENV['MAIL_ENCRYPTION'] ?? 'tls');
+    define('APP_ENV', $_ENV['APP_ENV'] ?? 'development');
 }
 
 // ============================================
-// CONFIGURAR ERRORES SEGÚN AMBIENTE
+// CONFIGURAR ERRORES
 // ============================================
 
-if ($app_env === 'production') {
+if (($_ENV['APP_ENV'] ?? 'development') === 'production') {
     ini_set('display_errors', 0);
     ini_set('log_errors', 1);
     error_reporting(E_ALL);
@@ -94,10 +94,6 @@ if ($app_env === 'production') {
     ini_set('display_errors', 1);
     error_reporting(E_ALL);
 }
-
-// ============================================
-// MARCAR COMO INICIALIZADO
-// ============================================
 
 define('APP_INITIALIZED', true);
 
