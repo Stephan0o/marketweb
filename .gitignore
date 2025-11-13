@@ -1,0 +1,21 @@
+# SECRETOS - NUNCA SUBIR
+.env
+.env.local
+.env.*.local
+
+# DEPENDENCIAS
+vendor/
+node_modules/
+
+# LOGS Y TEMPORALES
+*.log
+logs/
+tmp/
+temp/
+cache/
+
+# SISTEMA OPERATIVO
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

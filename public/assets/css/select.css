@@ -1,0 +1,90 @@
+/* ========================================
+   SELECT DE ESTADOS - ESTILOS MEJORADOS
+   ======================================== */
+
+.estado-select {
+    min-width: 160px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #2e2e3e;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 8px 12px;
+    text-align: left;
+    background: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.estado-select:hover {
+    border-color: #667eea;
+    box-shadow: 0 4px 10px rgba(102, 126, 234, 0.2);
+}
+
+.estado-select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* Estilos para las opciones dentro del select */
+.estado-select option {
+    padding: 10px;
+    font-weight: 600;
+}
+
+.estado-select option[value="Pendiente"] {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.estado-select option[value="En curso"] {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.estado-select option[value="Finalizada"] {
+    background: #d4edda;
+    color: #155724;
+}
+
+/* Cambio de color del select según el valor seleccionado */
+.estado-select[value="Pendiente"] {
+    background: #fff3cd;
+    color: #856404;
+    border-color: #ffc107;
+}
+
+.estado-select[value="En curso"] {
+    background: #f8d7da;
+    color: #721c24;
+    border-color: #dc3545;
+}
+
+.estado-select[value="Finalizada"] {
+    background: #d4edda;
+    color: #155724;
+    border-color: #28a745;
+}
+
+/* Animación al cambiar de estado */
+@keyframes estadoChange {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.estado-select:active {
+    animation: estadoChange 0.3s ease;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .estado-select {
+        min-width: 140px;
+        font-size: 0.85rem;
+        padding: 6px 10px;
+    }
+}
+

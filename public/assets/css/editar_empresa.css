@@ -1,0 +1,137 @@
+
+        .section-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+        .section-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+        }
+        .section-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 25px;
+            font-weight: 600;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-body {
+            padding: 30px 25px;
+        }
+        .field-group {
+            position: relative;
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #f8f9fc;
+            border-radius: 12px;
+            border-left: 4px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+        .field-group:hover {
+            background: #fff;
+            border-left-color: #667eea;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .field-group.editing {
+            border-left-color: #28a745;
+            background: #f0fff4;
+        }
+        .field-label {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .field-input {
+            font-weight: 500;
+            background-color: transparent;
+            border: 2px solid transparent;
+            padding: 10px 15px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        .field-input[readonly], 
+        .field-input[disabled] {
+            background-color: #f8f9fa;
+            color: #6c757d;
+            cursor: not-allowed;
+        }
+        .field-input:not([readonly]):not([disabled]) {
+            background-color: white;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .edit-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+            border: none;
+        }
+        .edit-btn.btn-warning {
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+            color: #333;
+        }
+        .edit-btn.btn-warning:hover {
+            background: linear-gradient(135deg, #ffc400 0%, #ffd700 100%);
+            transform: scale(1.05);
+        }
+        .edit-btn.btn-success {
+            background: linear-gradient(135deg, #28a745 0%, #34ce57 100%);
+            color: white;
+        }
+        .empresa-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+        .info-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+        }
+        .info-card h5 {
+            margin: 0;
+            font-weight: 700;
+        }
+        .info-card p {
+            margin: 5px 0 0 0;
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+        .save-section {
+            background: #f8f9fc;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            margin-top: 30px;
+        }
+        .icon-field {
+            width: 24px;
+            height: 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #667eea;
+            color: white;
+            border-radius: 6px;
+            font-size: 0.85rem;
+        }

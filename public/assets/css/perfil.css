@@ -1,0 +1,74 @@
+        .section-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+        .section-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 25px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            border-bottom: 3px solid rgba(255,255,255,0.2);
+        }
+        .section-body {
+            padding: 30px 25px;
+        }
+        .info-row {
+            display: flex;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #495057;
+            width: 180px;
+            flex-shrink: 0;
+        }
+        .info-value {
+            color: #212529;
+            flex: 1;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            padding: 20px;
+            color: white;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        .password-requirements {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 5px;
+        }
+        .password-requirements ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .badge-role {
+            background: #667eea;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
