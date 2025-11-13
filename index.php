@@ -2,7 +2,7 @@
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
 if ($path === '/' || $path === '') {
-    header('Location: /public/index.php');
+    header('Location: /public/login.php');
     exit();
 }
 
