@@ -2,46 +2,44 @@
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-// Cargar init.php (que carga vendor/autoload.php automáticamente)
-require_once __DIR__ . '../../init.php';
+// Cargar init.php
+require_once __DIR__ . '/../init.php';
 
-/**
- * Genera un código aleatorio de verificación
- */
+//codigo aleatorio
 function generarCodigo($longitud = 6) {
     return substr(str_shuffle("0123456789"), 0, $longitud);
 }
 
-/**
- * Envía correo de verificación usando variables de entorno
- */
+//enviar correo
 function enviarCorreo($destinatario, $codigo) {
     $mail = new PHPMailer(true);
     
     try {
-        // ============================================
-        // CONFIGURACIÓN SMTP (desde variables de entorno)
-        // ============================================
+        $mail_host = $_ENV['MAIL_HOST'] ?? getenv('MAIL_HOST') ?? 'smtp.gmail.com';
+        $mail_port = $_ENV['MAIL_PORT'] ?? getenv('MAIL_PORT') ?? 587;
+        $mail_username = $_ENV['MAIL_USERNAME'] ?? getenv('MAIL_USERNAME');
+        $mail_password = $_ENV['MAIL_PASSWORD'] ?? getenv('MAIL_PASSWORD');
+        $mail_from_name = $_ENV['MAIL_FROM_NAME'] ?? getenv('MAIL_FROM_NAME') ?? 'MarketWeb';
         
+        if (!$mail_username || !$mail_password) {
+            throw new Exception('Credenciales de email no configuradas');
+        }
+        
+        // config SMTP
         $mail->SMTPDebug = 0;
         $mail->isSMTP();
-        $mail->Host = MAIL_HOST;
+        $mail->Host = $mail_host;
         $mail->SMTPAuth = true;
-        $mail->Username = MAIL_USERNAME;
-        $mail->Password = MAIL_PASSWORD;
+        $mail->Username = $mail_username;
+        $mail->Password = $mail_password;
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port = MAIL_PORT;
+        $mail->Port = $mail_port;
         $mail->CharSet = 'UTF-8';
-        
-        // Timeout y keep-alive
         $mail->Timeout = 30;
         $mail->SMTPKeepAlive = true;
 
-        // ============================================
-        // CONFIGURACIÓN DEL CORREO
-        // ============================================
-        
-        $mail->setFrom(MAIL_USERNAME, MAIL_FROM_NAME);
+        // config correo
+        $mail->setFrom($mail_username, $mail_from_name);
         $mail->addAddress($destinatario);
         $mail->isHTML(true);
         $mail->Subject = "Confirma tu Registro - MarketWeb";
@@ -76,7 +74,7 @@ function enviarCorreo($destinatario, $codigo) {
         return [
             'success' => false, 
             'error' => $mail->ErrorInfo,
-            'message' => 'Error al enviar correo'
+            'message' => 'Error al enviar correo: ' . $e->getMessage()
         ];
     }
 }
