@@ -1,12 +1,21 @@
 # ============================================
-# REESCRITURA DE URLS
+# OCULTAR EXTENSIONES .php
 # ============================================
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /marketWebAzure/
     
-    # No reescribir archivos o directorios reales
+    # Ocultar .php - si el archivo .php existe, sirve sin mostrar la extensión
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME}\.php -f
+    RewriteRule ^([^\.]+)$ $1.php [NC,L]
+    
+    # Redirigir URLs con .php a sin extensión
+    RewriteCond %{THE_REQUEST} ^[A-Z]{3,9}\ /.*\.php [NC]
+    RewriteRule ^(.*)\.php$ /$1 [R=301,L]
+    
+    # Reescritura de URLs general
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^(.*)$ index.php?url=$1 [QSA,L]
