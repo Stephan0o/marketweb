@@ -29,11 +29,7 @@ $usuario_id = $_SESSION['usuario_id'];
 $nombre = $_SESSION['usuario_nombre'];
 $rol = $_SESSION['usuario_rol'];
 
-// ==========================================
-// NUEVAS FUNCIONES DE MEJORA
-// ==========================================
-
-// 1. DETECTAR INTENCIÓN DEL USUARIO
+// DETECTAR INTENCIÓN DEL USUARIO
 function detectarIntencion($mensaje) {
     $mensaje_lower = strtolower($mensaje);
     
@@ -59,7 +55,7 @@ function detectarIntencion($mensaje) {
     return 'general';
 }
 
-// 2. CREAR RESUMEN CONTEXTUAL INTELIGENTE (Memory Mejorada)
+// CREAR RESUMEN CONTEXTUAL 
 function crearResumenContexto($conversationHistory, $usuarioData, $empresaData, $campanasData) {
     $resumen = [];
     
@@ -78,11 +74,10 @@ function crearResumenContexto($conversationHistory, $usuarioData, $empresaData, 
     arsort($tema_dominante);
     $tema_principal = array_key_first($tema_dominante) ?? 'general';
     
-    // Construir resumen
     $resumen['tema_conversacion'] = $tema_principal;
     $resumen['cantidad_mensajes'] = count($ultimos_5);
     
-    // Datos de empresa relevantes
+    // Datos de empresa
     if ($empresaData['tiene']) {
         $empresa = $empresaData['datos'];
         $resumen['empresa_info'] = [
@@ -101,7 +96,7 @@ function crearResumenContexto($conversationHistory, $usuarioData, $empresaData, 
     return $resumen;
 }
 
-// 3. AJUSTAR INSTRUCCIONES SEGÚN INTENCIÓN
+// 3. AJUSTAR INSTRUCCIONES
 function obtenerInstruccionesPorIntencion($intencion) {
     $instrucciones = [
         'ideas' => "Sé CREATIVO pero práctico. Proporciona 2-3 ideas específicas y accionables. Usa un tono entusiasta.",
@@ -126,30 +121,18 @@ function obtenerInstruccionesPorIntencion($intencion) {
     return $instrucciones[$intencion] ?? $instrucciones['general'];
 }
 
-// ==========================================
 // OBTENER DATOS
-// ==========================================
-
 $contextoEmpresa = obtenerContextoEmpresa($conn, $usuario_id);
 $contextoCampanas = obtenerContextoCampanas($conn, $usuario_id);
 
-// ==========================================
 // CREAR RESUMEN CONTEXTUAL
-// ==========================================
-
 $resumenContexto = crearResumenContexto($conversationHistory, [], $contextoEmpresa, $contextoCampanas);
 
-// ==========================================
 // DETECTAR INTENCIÓN
-// ==========================================
-
 $intencion = detectarIntencion($userMessage);
 $instruccionesIntencion = obtenerInstruccionesPorIntencion($intencion);
 
-// ==========================================
-// CONSTRUIR PROMPT MEJORADO
-// ==========================================
-
+// CONSTRUIR PROMPT
 $systemPrompt = construirPromptSistemaV2(
     $nombre, 
     $rol, 
@@ -162,10 +145,7 @@ $systemPrompt = construirPromptSistemaV2(
 
 $promptCompleto = $systemPrompt . "\n\nUsuario: " . $userMessage . "\n\nAsistente:";
 
-// ==========================================
-// LLAMAR API
-// ==========================================
-
+// API
 $respuestaBot = llamarGeminiAPI(GEMINI_API_KEY, $promptCompleto);
 
 if ($respuestaBot === false) {
@@ -176,6 +156,25 @@ if ($respuestaBot === false) {
 
 $respuestaFormateada = formatearRespuestaHTML($respuestaBot);
 
+// BOTONES SI FALTA CONTEXTO
+$botonesAdicionales = '';
+
+if (!$contextoEmpresa['tiene']) {
+    $botonesAdicionales .= '<div class="chatbot-action-buttons">';
+    $botonesAdicionales .= '<a href="../../pages/form_empresa.php" class="chatbot-btn-action chatbot-btn-empresa" target="_blank">';
+    $botonesAdicionales .= '📝 Registrar mi Empresa';
+    $botonesAdicionales .= '</a>';
+    $botonesAdicionales .= '</div>';
+} elseif (!$contextoCampanas['tiene']) {
+    $botonesAdicionales .= '<div class="chatbot-action-buttons">';
+    $botonesAdicionales .= '<a href="../../pages/form_campania.php" class="chatbot-btn-action chatbot-btn-campania" target="_blank">';
+    $botonesAdicionales .= '🎯 Crear mi Primera Campaña';
+    $botonesAdicionales .= '</a>';
+    $botonesAdicionales .= '</div>';
+}
+
+$respuestaFormateada .= $botonesAdicionales;
+
 // Guardar en BD
 guardarMensaje($conn, $usuario_id, $userMessage, 'user');
 guardarMensaje($conn, $usuario_id, $respuestaFormateada, 'bot');
@@ -184,13 +183,9 @@ echo json_encode([
     'success' => true,
     'message' => $respuestaFormateada,
     'timestamp' => date('Y-m-d H:i:s'),
-    'intencion' => $intencion // DEBUG: opcional remover después
 ]);
 
-// ==========================================
-// FUNCIONES ORIGINALES (MEJORADAS)
-// ==========================================
-
+// FUNCIONES ORIGINALES
 function obtenerContextoEmpresa($conn, $usuario_id) {
     $sql = "SELECT nombre_empresa, rubro, anos_mercado, ubicacion, equipo, 
                    productos, descripcion, diferenciador 
@@ -234,7 +229,7 @@ function obtenerContextoCampanas($conn, $usuario_id) {
     return ['tiene' => count($campanas) > 0, 'cantidad' => count($campanas), 'datos' => $campanas];
 }
 
-// NUEVO PROMPT MEJORADO CON INTENCIÓN Y CONTEXTO
+// PROMPT CON INTENCIÓN Y CONTEXTO
 function construirPromptSistemaV2($nombre, $rol, $contextoEmpresa, $contextoCampanas, $resumenContexto, $instruccionesIntencion, $intencion) {
     $prompt = "Eres un asistente experto en marketing digital para MarketWeb. ";
     $prompt .= "Tu nombre es 'Asistente MarketWeb' y ayudas a crear estrategias de marketing efectivas.\n\n";
@@ -255,7 +250,7 @@ function construirPromptSistemaV2($nombre, $rol, $contextoEmpresa, $contextoCamp
         $prompt .= "⚠️ El usuario aún NO tiene empresa registrada. Si pregunta sobre estrategias, recomienda registrarla primero.\n";
     }
     
-    // Resumen contextual (Memory Mejorada)
+    // Resumen contextual
     if ($resumenContexto['cantidad_mensajes'] > 1) {
         $prompt .= "\nCONTEXTO DE CONVERSACIÓN:\n";
         $prompt .= "- Tema principal: " . $resumenContexto['tema_conversacion'] . "\n";
@@ -265,7 +260,7 @@ function construirPromptSistemaV2($nombre, $rol, $contextoEmpresa, $contextoCamp
     }
     
     // Instrucciones específicas por intención
-    $prompt .= "\n⚡ INSTRUCCIÓN CLAVE PARA ESTA CONSULTA:\n";
+    $prompt .= "\n INSTRUCCIÓN CLAVE PARA ESTA CONSULTA:\n";
     $prompt .= $instruccionesIntencion . "\n";
     
     // Instrucciones generales de formato
