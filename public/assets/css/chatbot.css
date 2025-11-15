@@ -101,6 +101,7 @@
     align-items: center;
     gap: 10px;
     animation: slideInRight 0.5s ease;
+    white-space: nowrap;
 }
 
 .chatbot-welcome::after {
