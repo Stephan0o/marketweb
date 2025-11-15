@@ -161,13 +161,13 @@ $botonesAdicionales = '';
 
 if (!$contextoEmpresa['tiene']) {
     $botonesAdicionales .= '<div class="chatbot-action-buttons">';
-    $botonesAdicionales .= '<a href="../../pages/form_empresa.php" class="chatbot-btn-action chatbot-btn-empresa" target="_blank">';
+    $botonesAdicionales .= '<a href="../../public/form_empresa.php" class="chatbot-btn-action chatbot-btn-empresa">';
     $botonesAdicionales .= '📝 Registrar mi Empresa';
     $botonesAdicionales .= '</a>';
     $botonesAdicionales .= '</div>';
 } elseif (!$contextoCampanas['tiene']) {
     $botonesAdicionales .= '<div class="chatbot-action-buttons">';
-    $botonesAdicionales .= '<a href="../../pages/form_campania.php" class="chatbot-btn-action chatbot-btn-campania" target="_blank">';
+    $botonesAdicionales .= '<a href="../../public/form_campania.php" class="chatbot-btn-action chatbot-btn-campania">';
     $botonesAdicionales .= '🎯 Crear mi Primera Campaña';
     $botonesAdicionales .= '</a>';
     $botonesAdicionales .= '</div>';
