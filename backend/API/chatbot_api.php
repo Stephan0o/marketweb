@@ -1,6 +1,6 @@
 <?php
 session_start();
-// 
+
 require_once __DIR__ . '/../../init.php';
 
 if (!isset($_SESSION['usuario_id'])) {
@@ -9,17 +9,15 @@ if (!isset($_SESSION['usuario_id'])) {
     exit();
 }
 
-// Verificar que sea una petición POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['error' => 'Método no permitido']);
     exit();
 }
 
-// Obtener datos de la petición
 $input = json_decode(file_get_contents('php://input'), true);
 $userMessage = $input['message'] ?? '';
-$conversationHistory = $input['history'] ?? []; // historial
+$conversationHistory = $input['history'] ?? [];
 
 if (empty($userMessage)) {
     http_response_code(400);
@@ -27,23 +25,147 @@ if (empty($userMessage)) {
     exit();
 }
 
-// Datos usuario
 $usuario_id = $_SESSION['usuario_id'];
 $nombre = $_SESSION['usuario_nombre'];
 $rol = $_SESSION['usuario_rol'];
 
-// Datos del user
-// empresa
-$contextoEmpresa = obtenerContextoEmpresa($conn, $usuario_id);
+// ==========================================
+// NUEVAS FUNCIONES DE MEJORA
+// ==========================================
 
-// campañas
+// 1. DETECTAR INTENCIÓN DEL USUARIO
+function detectarIntencion($mensaje) {
+    $mensaje_lower = strtolower($mensaje);
+    
+    $intenciones = [
+        'ideas' => ['idea', 'dame ideas', 'sugiere', 'qué puedo', 'cómo podría', 'propuesta'],
+        'analisis' => ['analiza', 'análisis', 'evalúa', 'cómo está', 'rendimiento', 'resultados', 'comparar'],
+        'estrategia' => ['estrategia', 'plan', 'cómo hacer', 'enfoque', 'tactic', 'objetivo'],
+        'contenido' => ['contenido', 'posts', 'texto', 'copy', 'describe', 'redacta', 'mensaje', 'eslogan'],
+        'publico' => ['público', 'audience', 'target', 'cliente', 'usuario', 'demogr'],
+        'presupuesto' => ['presupuesto', 'costo', 'inversión', 'precio', 'cuánto', 'gasto', 'rentabilidad'],
+        'redes' => ['red social', 'instagram', 'facebook', 'linkedin', 'tiktok', 'youtube', 'canal'],
+        'consejo' => ['me aconsejas', 'qué hago', 'debería', 'recomendación', 'crees que']
+    ];
+    
+    foreach ($intenciones as $intencion => $palabras_clave) {
+        foreach ($palabras_clave as $palabra) {
+            if (strpos($mensaje_lower, $palabra) !== false) {
+                return $intencion;
+            }
+        }
+    }
+    
+    return 'general';
+}
+
+// 2. CREAR RESUMEN CONTEXTUAL INTELIGENTE (Memory Mejorada)
+function crearResumenContexto($conversationHistory, $usuarioData, $empresaData, $campanasData) {
+    $resumen = [];
+    
+    // Extraer puntos clave de la conversación
+    $temas_mencionados = [];
+    $ultimos_5 = array_slice($conversationHistory, -10);
+    
+    foreach ($ultimos_5 as $msg) {
+        if ($msg['role'] === 'user') {
+            $intencion = detectarIntencion($msg['content']);
+            $temas_mencionados[] = $intencion;
+        }
+    }
+    
+    $tema_dominante = array_count_values($temas_mencionados);
+    arsort($tema_dominante);
+    $tema_principal = array_key_first($tema_dominante) ?? 'general';
+    
+    // Construir resumen
+    $resumen['tema_conversacion'] = $tema_principal;
+    $resumen['cantidad_mensajes'] = count($ultimos_5);
+    
+    // Datos de empresa relevantes
+    if ($empresaData['tiene']) {
+        $empresa = $empresaData['datos'];
+        $resumen['empresa_info'] = [
+            'nombre' => $empresa['nombre_empresa'] ?? '',
+            'rubro' => $empresa['rubro'] ?? '',
+            'diferenciador' => substr($empresa['diferenciador'] ?? '', 0, 100)
+        ];
+    }
+    
+    // Campañas activas
+    if ($campanasData['tiene']) {
+        $resumen['campanas_activas'] = $campanasData['cantidad'];
+        $resumen['ultimo_canal'] = $campanasData['datos'][0]['canales'] ?? 'No especificado';
+    }
+    
+    return $resumen;
+}
+
+// 3. AJUSTAR INSTRUCCIONES SEGÚN INTENCIÓN
+function obtenerInstruccionesPorIntencion($intencion) {
+    $instrucciones = [
+        'ideas' => "Sé CREATIVO pero práctico. Proporciona 2-3 ideas específicas y accionables. Usa un tono entusiasta.",
+        
+        'analisis' => "Sé CRÍTICO pero constructivo. Analiza qué funciona/no funciona. Proporciona 1 recomendación concreta de mejora.",
+        
+        'estrategia' => "Sé ESTRUCTURADO. Responde con: Objetivo + Acciones clave (máx 3) + Métrica de éxito. Tono profesional.",
+        
+        'contenido' => "Sé DIRECTO. Si pide redacción, hazla BREVE (máx 2 líneas si es social). Si es análisis, explica por qué funciona.",
+        
+        'publico' => "Sé ESPECÍFICO. Describe el público con 2-3 características clave. Enlaza con los datos de la empresa si existen.",
+        
+        'presupuesto' => "Sé REALISTA. Proporciona rangos, no números exactos. Relaciona inversión con ROI posible.",
+        
+        'redes' => "Sé RECOMENDADOR. Sugiere qué red específica según el objetivo/público. Explica brevemente por qué.",
+        
+        'consejo' => "Sé MENTOR. Hazle preguntas reflexivas: '¿Has considerado...' o proporciona perspectiva diferente.",
+        
+        'general' => "Responde de forma balanceada, útil y concisa."
+    ];
+    
+    return $instrucciones[$intencion] ?? $instrucciones['general'];
+}
+
+// ==========================================
+// OBTENER DATOS
+// ==========================================
+
+$contextoEmpresa = obtenerContextoEmpresa($conn, $usuario_id);
 $contextoCampanas = obtenerContextoCampanas($conn, $usuario_id);
 
-// prompt
-$systemPrompt = construirPromptSistema($nombre, $rol, $contextoEmpresa, $contextoCampanas);
+// ==========================================
+// CREAR RESUMEN CONTEXTUAL
+// ==========================================
+
+$resumenContexto = crearResumenContexto($conversationHistory, [], $contextoEmpresa, $contextoCampanas);
+
+// ==========================================
+// DETECTAR INTENCIÓN
+// ==========================================
+
+$intencion = detectarIntencion($userMessage);
+$instruccionesIntencion = obtenerInstruccionesPorIntencion($intencion);
+
+// ==========================================
+// CONSTRUIR PROMPT MEJORADO
+// ==========================================
+
+$systemPrompt = construirPromptSistemaV2(
+    $nombre, 
+    $rol, 
+    $contextoEmpresa, 
+    $contextoCampanas,
+    $resumenContexto,
+    $instruccionesIntencion,
+    $intencion
+);
+
 $promptCompleto = $systemPrompt . "\n\nUsuario: " . $userMessage . "\n\nAsistente:";
 
-// Usar la API key de las variables de entorno
+// ==========================================
+// LLAMAR API
+// ==========================================
+
 $respuestaBot = llamarGeminiAPI(GEMINI_API_KEY, $promptCompleto);
 
 if ($respuestaBot === false) {
@@ -54,20 +176,22 @@ if ($respuestaBot === false) {
 
 $respuestaFormateada = formatearRespuestaHTML($respuestaBot);
 
-// guardar en db
+// Guardar en BD
 guardarMensaje($conn, $usuario_id, $userMessage, 'user');
 guardarMensaje($conn, $usuario_id, $respuestaFormateada, 'bot');
 
-// respuesta hacia user
 echo json_encode([
     'success' => true,
     'message' => $respuestaFormateada,
-    'timestamp' => date('Y-m-d H:i:s')
+    'timestamp' => date('Y-m-d H:i:s'),
+    'intencion' => $intencion // DEBUG: opcional remover después
 ]);
 
-//funciones
+// ==========================================
+// FUNCIONES ORIGINALES (MEJORADAS)
+// ==========================================
+
 function obtenerContextoEmpresa($conn, $usuario_id) {
-    global $conn;
     $sql = "SELECT nombre_empresa, rubro, anos_mercado, ubicacion, equipo, 
                    productos, descripcion, diferenciador 
             FROM empresas WHERE usuario_id = ? LIMIT 1";
@@ -80,17 +204,13 @@ function obtenerContextoEmpresa($conn, $usuario_id) {
     if ($result->num_rows > 0) {
         $empresa = $result->fetch_assoc();
         $stmt->close();
-        return [
-            'tiene' => true,
-            'datos' => $empresa
-        ];
+        return ['tiene' => true, 'datos' => $empresa];
     }
     
     $stmt->close();
     return ['tiene' => false];
 }
 
-//campañas
 function obtenerContextoCampanas($conn, $usuario_id) {
     $sql = "SELECT c.nombre_campaña, c.objetivo, c.publico, c.presupuesto_marketing, 
                    c.canales, c.redes, c.duracion_inicio, c.duracion_fin
@@ -111,78 +231,59 @@ function obtenerContextoCampanas($conn, $usuario_id) {
     }
     
     $stmt->close();
-    return [
-        'tiene' => count($campanas) > 0,
-        'cantidad' => count($campanas),
-        'datos' => $campanas
-    ];
+    return ['tiene' => count($campanas) > 0, 'cantidad' => count($campanas), 'datos' => $campanas];
 }
 
-//prompt con cotexto del user
-function construirPromptSistema($nombre, $rol, $contextoEmpresa, $contextoCampanas) {
-    $prompt = "Eres un asistente experto en marketing digital para la plataforma MarketWeb. ";
-    $prompt .= "Tu nombre es 'Asistente MarketWeb' y ayudas a usuarios a crear estrategias de marketing efectivas.\n\n";
+// NUEVO PROMPT MEJORADO CON INTENCIÓN Y CONTEXTO
+function construirPromptSistemaV2($nombre, $rol, $contextoEmpresa, $contextoCampanas, $resumenContexto, $instruccionesIntencion, $intencion) {
+    $prompt = "Eres un asistente experto en marketing digital para MarketWeb. ";
+    $prompt .= "Tu nombre es 'Asistente MarketWeb' y ayudas a crear estrategias de marketing efectivas.\n\n";
     
     $prompt .= "INFORMACIÓN DEL USUARIO:\n";
     $prompt .= "- Nombre: $nombre\n";
     $prompt .= "- Rol: $rol\n";
+    $prompt .= "- Tipo de consulta actual: " . strtoupper($intencion) . "\n\n";
     
     // Contexto de empresa
     if ($contextoEmpresa['tiene']) {
         $empresa = $contextoEmpresa['datos'];
-        $prompt .= "\nEMPRESA DEL USUARIO:\n";
-        $prompt .= "- Nombre: " . ($empresa['nombre_empresa'] ?? 'No especificado') . "\n";
-        $prompt .= "- Rubro: " . ($empresa['rubro'] ?? 'No especificado') . "\n";
-        $prompt .= "- Años en el mercado: " . ($empresa['anos_mercado'] ?? 'No especificado') . "\n";
-        $prompt .= "- Ubicación: " . ($empresa['ubicacion'] ?? 'No especificado') . "\n";
+        $prompt .= "EMPRESA:\n";
+        $prompt .= "- Rubro: " . ($empresa['rubro'] ?? 'N/A') . "\n";
+        $prompt .= "- Diferenciador: " . substr($empresa['diferenciador'] ?? '', 0, 80) . "\n";
+        $prompt .= "- Mercado: " . ($empresa['anos_mercado'] ?? 'N/A') . " años\n";
     } else {
-        $prompt .= "\n⚠️ El usuario AÚN NO ha registrado su empresa.\n";
-        $prompt .= "Si pregunta sobre campañas o estrategias, recomiéndale primero registrar su empresa.\n";
+        $prompt .= "⚠️ El usuario aún NO tiene empresa registrada. Si pregunta sobre estrategias, recomienda registrarla primero.\n";
     }
     
-    // Contexto de campañas
-    if ($contextoCampanas['tiene']) {
-        $prompt .= "\nCAMPAÑAS ACTIVAS (" . $contextoCampanas['cantidad'] . "):\n";
-        foreach ($contextoCampanas['datos'] as $index => $campana) {
-            $prompt .= ($index + 1) . ". " . $campana['nombre_campaña'] . "\n";
-            $prompt .= "   - Objetivo: " . $campana['objetivo'] . "\n";
-            $prompt .= "   - Público: " . $campana['publico'] . "\n";
+    // Resumen contextual (Memory Mejorada)
+    if ($resumenContexto['cantidad_mensajes'] > 1) {
+        $prompt .= "\nCONTEXTO DE CONVERSACIÓN:\n";
+        $prompt .= "- Tema principal: " . $resumenContexto['tema_conversacion'] . "\n";
+        if (isset($resumenContexto['campanas_activas'])) {
+            $prompt .= "- Tiene " . $resumenContexto['campanas_activas'] . " campaña(s) activa(s)\n";
         }
     }
     
-    $prompt .= "\n INSTRUCCIONES CRÍTICAS DE FORMATO:\n";
-    $prompt .= "1. SÉ BREVE: Máximo 2-3 párrafos cortos\n";
-    $prompt .= "2. USA EMOJIS: Coloca un emoji relevante al inicio de cada punto\n";
-    $prompt .= "3. USA LISTAS: Para múltiples ideas usa viñetas con guiones (-)\n";
-    $prompt .= "4. ESTRUCTURA:\n";
-    $prompt .= "   - Saludo breve (1 línea)\n";
-    $prompt .= "   - Respuesta principal (1-2 párrafos)\n";
-    $prompt .= "   - Si hay varios puntos, usa lista con guiones (-)\n";
-    $prompt .= "   - Cierre opcional (1 línea)\n";
-    $prompt .= "5. NO uses HTML, usa texto plano con formato markdown simple\n";
-    $prompt .= "6. EJEMPLO DE FORMATO CORRECTO:\n\n";
-    $prompt .= "¡Hola! 👋\n\n";
-    $prompt .= "Para tu empresa en el rubro de tecnología, te recomiendo:\n\n";
-    $prompt .= "- 💡 Enfocarte en LinkedIn y Facebook\n";
-    $prompt .= "- 🎯 Crear contenido educativo\n";
-    $prompt .= "- 📊 Usar anuncios segmentados\n\n";
-    $prompt .= "¿Necesitas ayuda con algo más específico?\n\n";
+    // Instrucciones específicas por intención
+    $prompt .= "\n⚡ INSTRUCCIÓN CLAVE PARA ESTA CONSULTA:\n";
+    $prompt .= $instruccionesIntencion . "\n";
+    
+    // Instrucciones generales de formato
+    $prompt .= "\nINSTRUCCIONES DE FORMATO:\n";
+    $prompt .= "1. SÉ BREVE: Máximo 2-3 párrafos cortos (no aumentes tamaño)\n";
+    $prompt .= "2. USA EMOJIS: Coloca emoji relevante al inicio de puntos clave\n";
+    $prompt .= "3. USA LISTAS: Para múltiples ideas usa viñetas (-)\n";
+    $prompt .= "4. NO uses HTML, solo texto plano con markdown simple\n";
+    $prompt .= "5. SÉ ESPECÍFICO: Evita respuestas genéricas, adapta al contexto del usuario\n";
     
     return $prompt;
 }
 
-// API
 function llamarGeminiAPI($apiKey, $prompt) {
     $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=$apiKey";
     
     $data = [
-        "contents" => [
-            [
-                "parts" => [
-                    ["text" => $prompt]
-                ]
-            ]
-        ],
+        "contents" => [["parts" => [["text" => $prompt]]]],
         "generationConfig" => [
             "temperature" => 0.7,
             "maxOutputTokens" => 800,
@@ -190,14 +291,8 @@ function llamarGeminiAPI($apiKey, $prompt) {
             "topK" => 40
         ],
         "safetySettings" => [
-            [
-                "category" => "HARM_CATEGORY_HARASSMENT",
-                "threshold" => "BLOCK_MEDIUM_AND_ABOVE"
-            ],
-            [
-                "category" => "HARM_CATEGORY_HATE_SPEECH",
-                "threshold" => "BLOCK_MEDIUM_AND_ABOVE"
-            ]
+            ["category" => "HARM_CATEGORY_HARASSMENT", "threshold" => "BLOCK_MEDIUM_AND_ABOVE"],
+            ["category" => "HARM_CATEGORY_HATE_SPEECH", "threshold" => "BLOCK_MEDIUM_AND_ABOVE"]
         ]
     ];
     
@@ -205,35 +300,24 @@ function llamarGeminiAPI($apiKey, $prompt) {
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "Content-Type: application/json"
-    ]);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Content-Type: application/json"]);
     
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
     
     if ($httpCode !== 200) {
-        error_log("Error en Gemini API: " . $response);
+        error_log("Error Gemini API: " . $response);
         return false;
     }
     
     $responseData = json_decode($response, true);
-    
-    if (isset($responseData['candidates'][0]['content']['parts'][0]['text'])) {
-        return $responseData['candidates'][0]['content']['parts'][0]['text'];
-    }
-    
-    return false;
+    return $responseData['candidates'][0]['content']['parts'][0]['text'] ?? false;
 }
 
-// Convertir respuesta a HTML
 function formatearRespuestaHTML($texto) {
-    // Limpiar espacios extras y normalizar saltos de línea
     $texto = trim($texto);
     $texto = str_replace("\r\n", "\n", $texto);
-    
-    // Separar el texto en bloques
     $bloques = preg_split('/\n\n+/', $texto);
     $html = '';
     
@@ -241,7 +325,6 @@ function formatearRespuestaHTML($texto) {
         $bloque = trim($bloque);
         if (empty($bloque)) continue;
         
-        // Detectar símbolos
         $lineas = explode("\n", $bloque);
         $esLista = false;
         
@@ -253,40 +336,25 @@ function formatearRespuestaHTML($texto) {
         }
         
         if ($esLista) {
-            // Procesar como lista
             $html .= '<ul class="bot-list">';
             foreach ($lineas as $linea) {
                 $linea = trim($linea);
                 if (empty($linea)) continue;
-                
-                // Remover guiones, asteriscos
                 $linea = preg_replace('/^[-*•]\s+/', '', $linea);
                 $html .= '<li>' . nl2br(htmlspecialchars($linea)) . '</li>';
             }
             $html .= '</ul>';
         } else {
-            // Procesar como párrafo
             $bloque = nl2br(htmlspecialchars($bloque));
-            
-            // Convertir negritas
             $bloque = preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', $bloque);
-            
-            // Convertir cursivas
             $bloque = preg_replace('/\*([^\*]+?)\*/', '<em>$1</em>', $bloque);
-            
             $html .= '<p>' . $bloque . '</p>';
         }
     }
     
-    // Si no se generó HTML, envolver todo en un párrafo
-    if (empty($html)) {
-        $html = '<p>' . nl2br(htmlspecialchars($texto)) . '</p>';
-    }
-    
-    return $html;
+    return empty($html) ? '<p>' . nl2br(htmlspecialchars($texto)) . '</p>' : $html;
 }
 
-// guardar mensaje en la db
 function guardarMensaje($conn, $usuario_id, $mensaje, $rol) {
     $sql = "INSERT INTO chatbot_conversaciones (usuario_id, mensaje, rol) VALUES (?, ?, ?)";
     $stmt = $conn->prepare($sql);
