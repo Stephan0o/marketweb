@@ -25,4 +25,4 @@ RUN composer install --no-dev --optimize-autoloader
 EXPOSE 10000
 
 # Comando para iniciar el servidor
-CMD ["php", "-S", "0.0.0.0:10000", "-t", "/app", "router.php"]
+CMD ["php", "-S", "0.0.0.0:10000"]
