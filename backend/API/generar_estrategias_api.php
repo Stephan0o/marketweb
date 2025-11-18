@@ -1,11 +1,10 @@
 <?php
 session_start();
-// 
+
 require_once __DIR__ . '/../../init.php';
 
 header('Content-Type: application/json');
 
-// Validar login
 if (!isset($_SESSION['usuario_id'])) {
     echo json_encode(['success' => false, 'message' => 'Acceso denegado. Inicia sesión.']);
     exit();
@@ -13,14 +12,12 @@ if (!isset($_SESSION['usuario_id'])) {
 
 $user_id = $_SESSION['usuario_id'];
 
-// Validar campania_id
 if (!isset($_GET['campania_id']) || !is_numeric($_GET['campania_id'])) {
     echo json_encode(['success' => false, 'message' => 'ID de campaña inválido.']);
     exit();
 }
 $campania_id = intval($_GET['campania_id']);
 
-// Obtener campaña y validar
 $sqlCamp = "SELECT c.*, e.* 
             FROM campañas c 
             JOIN empresas e ON c.empresa_id = e.id 
@@ -65,7 +62,6 @@ $campania = [
 
 $nombre_empresa = $empresa['nombre_empresa'];
 
-// Verificar si ya existen estrategias
 $sqlCheck = "SELECT * FROM estrategias WHERE campania_id = ? LIMIT 1";
 $stmtCheck = $conn->prepare($sqlCheck);
 $stmtCheck->bind_param("i", $campania_id);
@@ -77,7 +73,6 @@ if ($resCheck->num_rows > 0) {
     exit();
 }
 
-// Prompt
 $prompt = "Eres un estratega experto en marketing con un tono profesional y experto, pero usando un lenguaje claro, sencillo y directo, como si se lo explicaras a un emprendedor sin formación técnica. Evita jerga especializada. Genera EXACTAMENTE 3 estrategias de marketing profesionales en formato JSON para:
 
 EMPRESA: '{$nombre_empresa}'
@@ -131,47 +126,80 @@ FORMATO REQUERIDO - JSON válido, sin texto adicional:
 
 Genera SOLO el JSON, sin explicaciones adicionales:";
 
-// Usar la API key de las variables de entorno
-$apiKey = GEMINI_API_KEY;
-$ch = curl_init("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=$apiKey");
-
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    "Content-Type: application/json"
-]);
-
-$dataAPI = [
-    "contents" => [
-        [
-            "parts" => [
-                ["text" => $prompt]
-            ]
-        ]
-    ],
-    "generationConfig" => [
-        "temperature" => 0.6,
-        "maxOutputTokens" => 3000,
-        "topP" => 0.8,
-        "topK" => 40
-    ]
+// Fallback: Intentar con múltiples APIs Gemini
+$apiKeys = [
+    GEMINI_API_KEY_1,
+    GEMINI_API_KEY_2,
+    GEMINI_API_KEY_3
 ];
 
-curl_setopt($ch, CURLOPT_POST, true);
-curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($dataAPI));
-$response = curl_exec($ch);
-$curlError = curl_error($ch);
-curl_close($ch);
+$response = null;
+$apiUsada = null;
 
-// Validar errores de cURL
-if ($curlError) {
-    file_put_contents("log_estrategias.txt", date('Y-m-d H:i:s')." - Error cURL: ".$curlError."\n\n", FILE_APPEND);
-    echo json_encode(['success' => false, 'message' => 'Error de conexión con la API.']);
+foreach ($apiKeys as $index => $apiKey) {
+    if (empty($apiKey)) {
+        continue;
+    }
+    
+    try {
+        $ch = curl_init("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=$apiKey");
+        
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            "Content-Type: application/json"
+        ]);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        
+        $dataAPI = [
+            "contents" => [
+                [
+                    "parts" => [
+                        ["text" => $prompt]
+                    ]
+                ]
+            ],
+            "generationConfig" => [
+                "temperature" => 0.6,
+                "maxOutputTokens" => 3000,
+                "topP" => 0.8,
+                "topK" => 40
+            ]
+        ];
+        
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($dataAPI));
+        $response = curl_exec($ch);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+        
+        if ($curlError) {
+            error_log("API Gemini #" . ($index + 1) . " cURL error: " . $curlError);
+            continue;
+        }
+        
+        $responseData = json_decode($response, true);
+        
+        if (isset($responseData['error'])) {
+            error_log("API Gemini #" . ($index + 1) . " error: " . ($responseData['error']['message'] ?? 'Unknown'));
+            continue;
+        }
+        
+        if (!empty($responseData['candidates'][0]['content']['parts'][0]['text'] ?? "")) {
+            $apiUsada = $index + 1;
+            break;
+        }
+    } catch (Exception $e) {
+        error_log("API Gemini #" . ($index + 1) . " exception: " . $e->getMessage());
+        continue;
+    }
+}
+
+if ($response === null || !isset($responseData)) {
+    file_put_contents("log_estrategias.txt", date('Y-m-d H:i:s')." - Todas las APIs fallaron\n\n", FILE_APPEND);
+    echo json_encode(['success' => false, 'message' => 'Error de conexión con todas las APIs.']);
     exit();
 }
 
-$responseData = json_decode($response, true);
-
-// Validar respuesta de la API
 if (isset($responseData['error'])) {
     $errorMsg = $responseData['error']['message'] ?? 'Error desconocido de la API';
     file_put_contents("log_estrategias.txt", date('Y-m-d H:i:s')." - Error API: ".$errorMsg."\n\n", FILE_APPEND);
@@ -179,7 +207,6 @@ if (isset($responseData['error'])) {
     exit();
 }
 
-// Extraer respuesta de gemini
 $texto = $responseData['candidates'][0]['content']['parts'][0]['text'] ?? "";
 
 if (empty($texto)) {
@@ -188,27 +215,21 @@ if (empty($texto)) {
     exit();
 }
 
-// Log de la respuesta cruda para debugging
 file_put_contents("log_estrategias.txt", date('Y-m-d H:i:s')." - Respuesta cruda:\n".$texto."\n\n", FILE_APPEND);
 
-// Limpieza de respuestas
 $textoLimpio = trim($texto);
-// Remover bloques de código markdown
 $textoLimpio = preg_replace('/^```(json)?[\r\n]+/im', '', $textoLimpio);
 $textoLimpio = preg_replace('/[\r\n]+```$/im', '', $textoLimpio);
 $textoLimpio = trim($textoLimpio);
 
-// Si empieza con texto antes del JSON, intentar extraer solo el JSON
 if (!preg_match('/^\[/', $textoLimpio)) {
     if (preg_match('/(\[[\s\S]*\])/m', $textoLimpio, $matches)) {
         $textoLimpio = $matches[1];
     }
 }
 
-// Log del JSON limpio
 file_put_contents("log_estrategias.txt", date('Y-m-d H:i:s')." - JSON limpio:\n".$textoLimpio."\n\n", FILE_APPEND);
 
-// Parsear como JSON
 $estrategias = json_decode($textoLimpio, true);
 
 if (json_last_error() !== JSON_ERROR_NONE) {
@@ -224,7 +245,6 @@ if (!$estrategias || !is_array($estrategias) || count($estrategias) !== 3) {
     exit();
 }
 
-// Insert en estrategias (padre)
 $sqlInsert = "INSERT INTO estrategias (empresa_id, campania_id, generado_en) VALUES (?, ?, NOW())";
 $stmtInsert = $conn->prepare($sqlInsert);
 $stmtInsert->bind_param("ii", $empresa['id'], $campania_id);
@@ -236,7 +256,6 @@ if (!$estrategia_id) {
     exit();
 }
 
-// Insertar las 3 estrategias
 $insertados = 0;
 foreach ($estrategias as $estr) {
     if (!isset($estr['titulo']) || !isset($estr['descripcion'])) {
