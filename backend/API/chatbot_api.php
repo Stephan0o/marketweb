@@ -140,10 +140,35 @@ $systemPrompt = construirPromptSistemaV2Mejorado(
 
 $promptCompleto = $systemPrompt . "\n\nUsuario: " . $userMessage . "\n\nAsistente:";
 
-// LLAMAR API
-$respuestaBot = llamarGeminiAPI(GEMINI_API_KEY, $promptCompleto);
+// FALLBACK: INTENTAR CON MÚLTIPLES APIS GEMINI
+$apiKeys = [
+    GEMINI_API_KEY_1,
+    GEMINI_API_KEY_2,
+    GEMINI_API_KEY_3
+];
 
-if ($respuestaBot === false) {
+$respuestaBot = null;
+$apiUsada = null;
+
+foreach ($apiKeys as $index => $apiKey) {
+    if (empty($apiKey)) {
+        continue;
+    }
+    
+    try {
+        $respuestaBot = llamarGeminiAPI($apiKey, $promptCompleto);
+        
+        if ($respuestaBot !== false) {
+            $apiUsada = $index + 1;
+            break;
+        }
+    } catch (Exception $e) {
+        error_log("API Gemini #" . ($index + 1) . " falló: " . $e->getMessage());
+        continue;
+    }
+}
+
+if ($respuestaBot === false || $respuestaBot === null) {
     http_response_code(500);
     echo json_encode(['error' => 'Error al conectar con la IA']);
     exit();
@@ -180,7 +205,7 @@ echo json_encode([
     'timestamp' => date('Y-m-d H:i:s')
 ]);
 
-// FUNCIONEs
+// FUNCIONES
 function obtenerContextoEmpresa($conn, $usuario_id) {
     $sql = "SELECT nombre_empresa, rubro, anos_mercado, ubicacion, equipo, 
                    productos, descripcion, diferenciador 
@@ -307,13 +332,14 @@ function llamarGeminiAPI($apiKey, $prompt) {
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
     curl_setopt($ch, CURLOPT_HTTPHEADER, ["Content-Type: application/json"]);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
     
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
     
     if ($httpCode !== 200) {
-        error_log("Error Gemini API: " . $response);
+        error_log("Error Gemini API: HTTP $httpCode - " . $response);
         return false;
     }
     
