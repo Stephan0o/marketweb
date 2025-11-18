@@ -126,7 +126,7 @@ FORMATO REQUERIDO - JSON válido, sin texto adicional:
 
 Genera SOLO el JSON, sin explicaciones adicionales:";
 
-// Fallback: Intentar con múltiples APIs Gemini
+// Conexión con las Apis
 $apiKeys = [
     GEMINI_API_KEY_1,
     GEMINI_API_KEY_2,
