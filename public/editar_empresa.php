@@ -76,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <link rel="icon" type="image/png" href="/assets/img/logo.png">
+    <link rel="icon" type="image/png" href="assets/img/logo.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Editar Empresa - <?= htmlspecialchars($empresa['nombre_empresa']) ?></title>

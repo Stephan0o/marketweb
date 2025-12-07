@@ -61,7 +61,7 @@ $detalles = $resDet->fetch_all(MYSQLI_ASSOC);
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <link rel="icon" type="image/png" href="/assets/img/logo.png">
+    <link rel="icon" type="image/png" href="assets/img/logo.png">
     <meta charset="UTF-8">
     <title>Estrategias Generadas</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
