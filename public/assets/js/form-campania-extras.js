@@ -210,6 +210,11 @@ const fechaInicio = document.getElementById('fechaInicio');
 const fechaFin = document.getElementById('fechaFin');
 const duracionCampania = document.getElementById('duracionCampania');
 
+function obtenerFechaActual() {
+    const hoy = new Date();
+    return hoy.toISOString().split('T')[0];
+}
+
 function calcularDuracion() {
     if (fechaInicio && fechaFin && fechaInicio.value && fechaFin.value) {
         const inicio = new Date(fechaInicio.value);
@@ -217,9 +222,14 @@ function calcularDuracion() {
         const diferencia = fin - inicio;
         const dias = Math.floor(diferencia / (1000 * 60 * 60 * 24));
         
-        if (dias < 0) {
+        if (dias < 30) {
+            duracionCampania.innerHTML = '<span style="color: #e74a3b;">⚠️ La campaña debe durar mínimo 1 mes (30 días)</span>';
+            fechaFin.classList.add('is-invalid');
+            fechaFin.classList.remove('is-valid');
+        } else if (dias < 0) {
             duracionCampania.innerHTML = '<span style="color: #e74a3b;">⚠️ La fecha de fin debe ser posterior a la de inicio</span>';
             fechaFin.classList.add('is-invalid');
+            fechaFin.classList.remove('is-valid');
         } else {
             duracionCampania.innerHTML = `<span style="color: #1cc88a;">✓ Duración: ${dias} día${dias !== 1 ? 's' : ''}</span>`;
             fechaFin.classList.remove('is-invalid');
@@ -229,13 +239,21 @@ function calcularDuracion() {
 }
 
 if (fechaInicio && fechaFin) {
-    fechaInicio.addEventListener('change', calcularDuracion);
-    fechaFin.addEventListener('change', calcularDuracion);
+    const fechaActual = obtenerFechaActual();
+    fechaInicio.min = fechaActual;
     
-    // Establecer fecha mínima de fin basada en fecha de inicio
     fechaInicio.addEventListener('change', function() {
-        fechaFin.min = this.value;
+        const fechaInicioSeleccionada = this.value;
+        const inicioDate = new Date(fechaInicioSeleccionada);
+        const minFechaFin = new Date(inicioDate);
+        minFechaFin.setDate(minFechaFin.getDate() + 30);
+        
+        fechaFin.min = minFechaFin.toISOString().split('T')[0];
+        fechaFin.value = '';
+        duracionCampania.innerHTML = '';
     });
+    
+    fechaFin.addEventListener('change', calcularDuracion);
 }
 
 // BARRA DE PROGRESO PARA CAMPAÑA
@@ -275,7 +293,6 @@ if (formCampania) {
 // VALIDACIÓN AL ENVIAR
 if (formCampania) {
     formCampania.addEventListener('submit', function(e) {
-        // Validar que al menos un canal esté seleccionado
         const canalesSeleccionados = document.querySelectorAll('input[name="canales[]"]:checked').length;
         
         if (canalesSeleccionados === 0) {
@@ -286,10 +303,18 @@ if (formCampania) {
             return;
         }
         
-        // Validar fechas
         if (fechaInicio && fechaFin && fechaInicio.value && fechaFin.value) {
             const inicio = new Date(fechaInicio.value);
             const fin = new Date(fechaFin.value);
+            const diferencia = fin - inicio;
+            const dias = Math.floor(diferencia / (1000 * 60 * 60 * 24));
+            
+            if (dias < 30) {
+                e.preventDefault();
+                alert('⚠️ La campaña debe durar mínimo 1 mes (30 días)');
+                fechaFin.focus();
+                return;
+            }
             
             if (fin < inicio) {
                 e.preventDefault();
@@ -305,7 +330,6 @@ if (formCampania) {
             return;
         }
         
-        // Animación de envío
         const btnText = document.getElementById('btnText');
         const btnSpinner = document.getElementById('btnSpinner');
         const submitBtn = document.getElementById('submitBtn');
